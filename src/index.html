@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MVVM</title>
+</head>
+<body>
+    <div id="app">
+        <div class="header">姓名：{{name}}</div>
+        <div class="body">
+            <div>省份：{{address.province}}, 市区：{{address.city}}</div>
+            <div>市区：{{address.city}}</div>
+        </div>
+        <div>我叫： {{name}}</div>
+    </div>
+    <input type="text" id="input">
+    <button onclick="changeName()">changeName</button>
+    <button onclick="changeAddress()">changeAddress</button>
+</body>
+<script>
+    function changeName () {
+        let input = document.getElementById('input')
+        vm.$data.name = input.value
+    }
+    function changeAddress () {
+        let input = document.getElementById('input')
+        vm.$data.address.city = input.value
+    }
+</script>
+</html>
