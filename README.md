@@ -1,5 +1,5 @@
 # MVVM框架实现原理
-[【掘金】MVVM框架响应式原理解析+实现](https://juejin.im/editor/posts/5e255e7df265da3dee21fc5d)
+[【掘金】MVVM框架响应式原理解析+实现](https://juejin.im/post/5e255e7df265da3dee21fc5d)
 
 # 框架实现
 > vue.js 是采用数据劫持结合发布/订阅模式，通过Object.defineProperty()劫持各个属性的setter，getter，在数据变动时发布消息给订阅者，触发相应的监听函数
