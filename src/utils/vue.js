@@ -1,80 +1,37 @@
-/**
- * 依赖收集，用来关联watcher和observer
- */
-class Dep {
-    static target = null
-    constructor () {
-        this.subs = []
-    }
-    add (sub) {
-        this.subs.push(sub)
-    }
-    notify () {
-        this.subs.forEach(sub => sub.update())
-    }
-}
+import Observer from "./Observer"
+import Watcher from "./Watcher"
 
-/**
- * watcher
- * @param {*} vm 当前实例
- * @param {*} exp 表达式
- * @param {*} fn 监听函数
- */
-class Watcher {
-    constructor (vm, exp, fn) {
-        this.callback = fn
-        this.data = vm.$data
-        this.exp = exp // 类似于data.name的字符串
-        // 添加到订约中
-        Dep.target = this
-        this.fire()
-        Dep.target = null // 防止watcher重复添加
-    }
-    // 这里是为了触发Observer中定义的get函数，执行dep.add(Dep.target)
-    // 从而将watcher与Observer联系起来
-    fire () {
-        return this.exp.split('.').reduce((result, key) =>{
-            return result[key]
-        }, this.data)
-    }
-    update () {
-        let val = this.fire()
-        this.callback(val)
-    }
-}
-class Observer {
-    constructor (data) {
-        this.observe(data)
-    }
-    observe (data) {
-        if(Object.prototype.toString.call(data) === '[object Object]') {
-            // 遍历 data 对象属性，调用 defineReactive 方法
-            for(let key in data) {
-                this.defineReactive(data, key, data[key])
-            }
-        }
-    }
-    // defineReactive方法仅仅将data的属性转换为访问器属性
-    defineReactive (data, key, val) {
-        // 递归观测子属性
-        this.observe(val)
-        let dep = new Dep() // 为每一个属性都添加一个订阅
-        Object.defineProperty(data, key, {
-            enumerable: true,
-            configurable: true,
-            get () {
-                Dep.target && dep.add(Dep.target)
-                return val
-            },
-            set: newVal => {
-                // 和旧的值比对
-                if(val !== newVal){
-                    this.observe(newVal)  // 对新值进行观测
-                    val = newVal
-                    dep.notify() // 通知订阅者更新
-                }
-            }
+// 指令处理对象
+const Instructions = {
+    model (vm, node, expr) {
+        // input => vm.$data
+        node.addEventListener('input', event => {
+            vm.setData(expr, event.target.value)
         })
+        // vm.$data => input
+        node.value = vm.getData(expr)
+    },
+    on (vm, node, eventType, handler) {
+        // handler绑定this，否则this指向event.target
+        node.addEventListener(eventType, vm[handler].bind(vm))
+    },
+    bind (vm, node, prop, expr) {
+        switch (prop) {
+            case 'style':
+                new Watcher(vm, expr, value => {
+                    Object.assign(node.style, value)
+                })
+                Object.assign(node.style, vm.getData(expr))
+                break
+            case 'class':
+                new Watcher(vm, expr, list => {
+                    node.classList = list.join(' ')
+                })
+                node.classList = vm.getData(expr).join(' ')
+                break
+            default:
+                throw new Error('can\'t resolve the value ' + expr)
+        }
     }
 }
 
@@ -84,22 +41,25 @@ export default class Vue {
         this.$el =  document.querySelector(options.el)
         this.$data = options.data
         new Observer(this.$data)
-        this.reg = new RegExp(/\{\{(.+?)\}\}/, 'g')
+        Object.assign(this, options.methods) // 将方法挂载到this
         // 缓存dom节点
         let fragment = this.createFragment(this.$el)
         // 编译替换
+        this.reg = new RegExp(/\{\{(.+?)\}\}/, 'g')
         this.compile(fragment)
         // 插入节点,显示出来
         this.$el.appendChild(fragment)
         // 将data代理到this上
         for (let key in this.$data) {
             Object.defineProperty(this, key, {
+                configurable: true,
                 enumerable: true,
                 get () {
-                    console.log('代理成功')
+                    console.log('代理读取')
                     return this.$data[key]
                 },
                 set (newVal) {
+                    console.log('代理赋值')
                     this.$data[key] = newVal
                 }
             })
@@ -119,16 +79,35 @@ export default class Vue {
     }
     compileElement (node) {
         [...node.attributes].forEach(attr => {
-            // 属性值可以是表达式
+            // expr主要用来确定是哪个值
             let {name, value: expr} = attr
-            // 判断是不是指令:v-bind,v-model
-            if (name.startsWith('v-')) {
-                // 得到指令名
-                let [, instruction] = name.split('-')
+            // 判断是不是指令:v-bind,v-model,v-on
+            if (name.startsWith('@') || name.startsWith(':') || name.startsWith('v-')) {
                 // 策略模式封装不同的算法
-                // TODO: 处理指令
+                this.compileInstruction(node, name, expr)
+                // 自定义节点编译完就删除
+                node.removeAttribute(name)
             }
         })
+    }
+    compileInstruction (node, name, expr) {
+        let reg = new RegExp(/v-(.+?)\:/)
+        if (reg.test(name)) {
+            // v-on:click
+            let [, type] = name.match(reg) // 获取正则括号中的匹配内容
+            let prop = name.substr(name.indexOf(':') + 1) // 获取事件名，例如click
+            Instructions[type](this, node, prop, expr)
+        } else if (name.startsWith('v-')) {
+            let [, type] = name.split('-')
+            Instructions[type](this, node, expr)
+        } else {
+            let [type, ...prop] = name
+            if (type === '@') {
+                Instructions['on'](this, node, prop.join(''), expr)
+            } else if (type === ':') {
+                Instructions['bind'](this, node, prop.join(''), expr)
+            }
+        }
     }
     compileText (node) {
         const nodeValue = node.nodeValue
@@ -157,12 +136,20 @@ export default class Vue {
             return data[key]
         }, this.$data)
     }
+    setData (expr, value) {
+        expr.split('.').reduce((data, current, index, arr) => {
+            if (index === arr.length - 1) {
+                return data[current] = value
+            }
+            return data[current]
+        }, this.$data)
+    }
     createFragment (node) {
         let fragment = document.createDocumentFragment()
-        do {
+        while (node.firstChild) {
             // 插入碎片相当于从页面中抽离
             fragment.appendChild(node.firstChild)
-        } while (node.firstChild)
+        }
         return fragment
     }
 }
