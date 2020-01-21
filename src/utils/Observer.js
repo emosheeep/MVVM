@@ -2,6 +2,20 @@ import Dep from "./Dep"
 export default class Observer {
     constructor (data) {
         this.observe(data)
+        const handler = {
+            get (target, key) {
+                let dep = new Dep() // 为每一个属性都添加一个订阅
+                Dep.target && dep.add(Dep.target)
+                return Reflect.get(target, key)
+            },
+            set (target, key, value) {
+                if(target[key] !== value){
+                    dep.notify() // 通知订阅者更新
+                }
+               return Reflect.set(target, key, value)
+            }
+        }
+        return new Proxy(data, handler)
     }
     observe (data) {
         if(Object.prototype.toString.call(data) === '[object Object]') {

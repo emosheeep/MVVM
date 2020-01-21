@@ -26,16 +26,3 @@ new Vue({
         }
     }
 })
-
-// let target = [1, 2, 3]
-// target = new Proxy(target, {
-//     get (target, key) {
-//         console.log('get', key)
-//         return Reflect.get(target, key)
-//     },
-//     set(target, key, value) {
-//         console.log('set', key, value)
-//         return Reflect.set(target, key, value)
-//     }
-// })
-// target.pop()

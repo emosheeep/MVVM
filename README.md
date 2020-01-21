@@ -1,6 +1,4 @@
 # MVVM框架实现原理
-项目主要采用Object.defineProperty方法实现，另有Proxy分支，实现了数组监听和计算属性(computed)
-
 [【掘金】MVVM框架响应式原理解析+实现](https://juejin.im/editor/posts/5e255e7df265da3dee21fc5d)
 
 # 框架实现
