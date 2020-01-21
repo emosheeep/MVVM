@@ -1,4 +1,4 @@
-import Vue from "./utils/vue"
+import Vue from "./core/vue"
 
 new Vue({
     el: '#app',
