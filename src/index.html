@@ -22,7 +22,8 @@
             <div :class="myClass">市区：{{address.city}}</div>
         </div>
         <div :class="myClass">我叫：{{name}}</div>
-        <input type="text" id="input" v-model="name">
+		<div>数组内容: {{ nums }}</div>
+        <input type="text" id="input" v-model="address.city">
         <button @click="onClick">改变颜色</button>
     </div>
 </body>
